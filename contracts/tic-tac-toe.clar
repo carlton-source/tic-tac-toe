@@ -60,3 +60,39 @@
     ;; Return the Game ID of the new game
     (ok game-id)
 ))
+
+(define-public (join-game (game-id uint) (move-index uint) (move uint))
+    (let (
+        ;; Load the game data for the game being joined, throw an error if Game ID is invalid
+        (original-game-data (unwrap! (map-get? games game-id) (err ERR_GAME_NOT_FOUND)))
+        ;; Get the original board from the game data
+        (original-board (get board original-game-data))
+
+        ;; Update the game board by placing the player's move at the specified index
+        (game-board (unwrap! (replace-at? original-board move-index move) (err ERR_INVALID_MOVE)))
+        ;; Update the copy of the game data with the updated board and marking the next turn to be player two's turn
+        (game-data (merge original-game-data {
+            board: game-board,
+            player-two: (some contract-caller),
+            is-player-one-turn: true
+        }))
+    )
+
+    ;; Ensure that the game being joined is able to be joined
+    ;; i.e. player-two is currently empty
+    (asserts! (is-none (get player-two original-game-data)) (err ERR_GAME_CANNOT_BE_JOINED)) 
+    ;; Ensure that the move being played is an `O`, not an `X`
+    (asserts! (is-eq move u2) (err ERR_INVALID_MOVE))
+    ;; Ensure that the move meets validity requirements
+    (asserts! (validate-move original-board move-index move) (err ERR_INVALID_MOVE))
+
+    ;; Transfer the bet amount STX from user to this contract
+    (try! (stx-transfer? (get bet-amount original-game-data) contract-caller THIS_CONTRACT))
+    ;; Update the games map with the new game data
+    (map-set games game-id game-data)
+
+    ;; Log the joining of the game
+    (print { action: "join-game", data: game-data})
+    ;; Return the Game ID of the game
+    (ok game-id)
+))
