@@ -166,3 +166,34 @@
     ;; All three conditions must be true for the move to be valid
     (and (is-eq index-in-range true) (is-eq x-or-o true) empty-spot)
 ))
+
+;; Given a board, return true if any possible three-in-a-row line has been completed
+(define-private (has-won (board (list 9 uint))) 
+    (or
+        (is-line board u0 u1 u2) ;; Row 1
+        (is-line board u3 u4 u5) ;; Row 2
+        (is-line board u6 u7 u8) ;; Row 3
+        (is-line board u0 u3 u6) ;; Column 1
+        (is-line board u1 u4 u7) ;; Column 2
+        (is-line board u2 u5 u8) ;; Column 3
+        (is-line board u0 u4 u8) ;; Left to Right Diagonal
+        (is-line board u2 u4 u6) ;; Right to Left Diagonal
+    )
+)
+
+;; Given a board and three cells to look at on the board
+;; Return true if all three are not empty and are the same value (all X or all O)
+;; Return false if any of the three is empty or a different value
+(define-private (is-line (board (list 9 uint)) (a uint) (b uint) (c uint)) 
+    (let (
+        ;; Value of cell at index a
+        (a-val (unwrap! (element-at? board a) false))
+        ;; Value of cell at index b
+        (b-val (unwrap! (element-at? board b) false))
+        ;; Value of cell at index c
+        (c-val (unwrap! (element-at? board c) false))
+    )
+
+    ;; a-val must equal b-val and must also equal c-val while not being empty (non-zero)
+    (and (is-eq a-val b-val) (is-eq a-val c-val) (not (is-eq a-val u0)))
+))
