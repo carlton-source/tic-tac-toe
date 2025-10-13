@@ -23,6 +23,10 @@ importers:
       vitest-environment-clarinet:
         specifier: ^2.3.0
         version: 2.3.0(@hirosystems/clarinet-sdk@3.8.1)(vitest@3.2.4)
+    devDependencies:
+      vite:
+        specifier: ^7.1.9
+        version: 7.1.9
 
 packages:
 
