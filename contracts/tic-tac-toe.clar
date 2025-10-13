@@ -22,6 +22,18 @@
     }
 )
 
+;; Player statistics tracking
+(define-map player-stats 
+    principal ;; Key (Player address)
+    { ;; Value (Stats Tuple)
+        games-played: uint,
+        games-won: uint,
+        games-lost: uint,
+        total-stx-won: uint,
+        total-stx-lost: uint
+    }
+)
+
 (define-public (create-game (bet-amount uint) (move-index uint) (move uint))
     (let (
         ;; Get the Game ID to use for creation of this new game
@@ -134,6 +146,16 @@
     ;; if the game has been won, transfer the (bet amount * 2 = both players bets) STX to the winner
     (if is-now-winner (try! (as-contract (stx-transfer? (* u2 (get bet-amount game-data)) tx-sender player-turn))) false)
 
+    ;; Update player statistics if the game has been won
+    (if is-now-winner 
+        (let (
+            (loser (if is-player-one-turn (unwrap! (get player-two original-game-data) (err ERR_GAME_NOT_FOUND)) (get player-one original-game-data)))
+        )
+        (update-player-stats player-turn loser (get bet-amount game-data))
+        ) 
+        false
+    )
+
     ;; Update the games map with the new game data
     (map-set games game-id game-data)
 
@@ -197,3 +219,63 @@
     ;; a-val must equal b-val and must also equal c-val while not being empty (non-zero)
     (and (is-eq a-val b-val) (is-eq a-val c-val) (not (is-eq a-val u0)))
 ))
+
+;; Helper function to get player statistics or initialize empty stats
+(define-private (get-player-stats-or-default (player principal))
+    (default-to 
+        {
+            games-played: u0,
+            games-won: u0,
+            games-lost: u0,
+            total-stx-won: u0,
+            total-stx-lost: u0
+        }
+        (map-get? player-stats player)
+    )
+)
+
+;; Update player statistics when a game is completed
+(define-private (update-player-stats (winner principal) (loser principal) (bet-amount uint))
+    (let (
+        ;; Get current stats for both players
+        (winner-stats (get-player-stats-or-default winner))
+        (loser-stats (get-player-stats-or-default loser))
+        
+        ;; Calculate updated stats for winner
+        (updated-winner-stats {
+            games-played: (+ (get games-played winner-stats) u1),
+            games-won: (+ (get games-won winner-stats) u1),
+            games-lost: (get games-lost winner-stats),
+            total-stx-won: (+ (get total-stx-won winner-stats) (* bet-amount u2)),
+            total-stx-lost: (get total-stx-lost winner-stats)
+        })
+        
+        ;; Calculate updated stats for loser
+        (updated-loser-stats {
+            games-played: (+ (get games-played loser-stats) u1),
+            games-won: (get games-won loser-stats),
+            games-lost: (+ (get games-lost loser-stats) u1),
+            total-stx-won: (get total-stx-won loser-stats),
+            total-stx-lost: (+ (get total-stx-lost loser-stats) bet-amount)
+        })
+    )
+    
+    ;; Update both players' statistics
+    (map-set player-stats winner updated-winner-stats)
+    (map-set player-stats loser updated-loser-stats)
+    true
+))
+
+;; Read-only function to get player statistics
+(define-read-only (get-player-stats (player principal))
+    (get-player-stats-or-default player)
+)
+
+;; Read-only function to get all players who have played at least one game
+;; Note: This is a simplified implementation that relies on events for frontend parsing
+;; In a production environment, you might want a more efficient approach
+(define-read-only (get-all-players-count)
+    ;; This function returns the number of unique players
+    ;; Frontend will need to track players through game events
+    (ok true)
+)

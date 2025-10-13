@@ -9,9 +9,9 @@ plan:
     - id: 0
       transactions:
         - contract-publish:
-            contract-name: tic-tac-toe
+            contract-name: tic-tac-toe-stats
             expected-sender: ST262DFWDS07XGFC8HYE4H7MAESRD6M6G1B3K48JF
-            cost: 90730
+            cost: 119610
             path: contracts/tic-tac-toe.clar
             anchor-block-only: true
             clarity-version: 3
