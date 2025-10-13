@@ -96,3 +96,37 @@
     ;; Return the Game ID of the game
     (ok game-id)
 ))
+
+(define-public (play (game-id uint) (move-index uint) (move uint))
+    (let (
+        ;; Load the game data for the game being joined, throw an error if Game ID is invalid
+        (original-game-data (unwrap! (map-get? games game-id) (err ERR_GAME_NOT_FOUND)))
+        ;; Get the original board from the game data
+        (original-board (get board original-game-data))
+
+        ;; Is it player one's turn?
+        (is-player-one-turn (get is-player-one-turn original-game-data))
+        ;; Get the player whose turn it currently is based on the is-player-one-turn flag
+        (player-turn (if is-player-one-turn (get player-one original-game-data) (unwrap! (get player-two original-game-data) (err ERR_GAME_NOT_FOUND))))
+        ;; Get the expected move based on whose turn it is (X or O?)
+        (expected-move (if is-player-one-turn u1 u2))
+
+        ;; Update the game board by placing the player's move at the specified index
+        (game-board (unwrap! (replace-at? original-board move-index move) (err ERR_INVALID_MOVE)))
+        ;; Check if the game has been won now with this modified board
+        (is-now-winner (has-won game-board))
+        ;; Merge the game data with the updated board and marking the next turn to be player two's turn
+        ;; Also mark the winner if the game has been won
+        (game-data (merge original-game-data {
+            board: game-board,
+            is-player-one-turn: (not is-player-one-turn),
+            winner: (if is-now-winner (some player-turn) none)
+        }))
+    )
+
+    ;; Ensure that the function is being called by the player whose turn it is
+    (asserts! (is-eq player-turn contract-caller) (err ERR_NOT_YOUR_TURN))
+    ;; Ensure that the move being played is the correct move based on the current turn (X or O)
+    (asserts! (is-eq move expected-move) (err ERR_INVALID_MOVE))
+    ;; Ensure that the move meets validity requirements
+    (asserts! (validate-move original-board move-index move) (err ERR_INVALID_MOVE))
