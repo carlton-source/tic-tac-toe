@@ -130,3 +130,39 @@
     (asserts! (is-eq move expected-move) (err ERR_INVALID_MOVE))
     ;; Ensure that the move meets validity requirements
     (asserts! (validate-move original-board move-index move) (err ERR_INVALID_MOVE))
+
+    ;; if the game has been won, transfer the (bet amount * 2 = both players bets) STX to the winner
+    (if is-now-winner (try! (as-contract (stx-transfer? (* u2 (get bet-amount game-data)) tx-sender player-turn))) false)
+
+    ;; Update the games map with the new game data
+    (map-set games game-id game-data)
+
+    ;; Log the action of a move being made
+    (print {action: "play", data: game-data})
+    ;; Return the Game ID of the game
+    (ok game-id)
+))
+
+(define-read-only (get-game (game-id uint))
+    (map-get? games game-id)
+)
+
+(define-read-only (get-latest-game-id)
+    (var-get latest-game-id)
+)
+
+(define-private (validate-move (board (list 9 uint)) (move-index uint) (move uint))
+    (let (
+        ;; Validate that the move is being played within range of the board
+        (index-in-range (and (>= move-index u0) (< move-index u9)))
+
+        ;; Validate that the move is either an X or an O
+        (x-or-o (or (is-eq move u1) (is-eq move u2)))
+
+        ;; Validate that the cell the move is being played on is currently empty
+        (empty-spot (is-eq (unwrap! (element-at? board move-index) false) u0))
+    )
+
+    ;; All three conditions must be true for the move to be valid
+    (and (is-eq index-in-range true) (is-eq x-or-o true) empty-spot)
+))
